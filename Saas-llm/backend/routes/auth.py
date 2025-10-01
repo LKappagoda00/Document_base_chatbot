@@ -32,7 +32,7 @@ class Token(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: str
     full_name: Optional[str]
     is_active: bool
@@ -43,7 +43,7 @@ class UserResponse(BaseModel):
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency to extract current user from JWT token."""
     token = credentials.credentials
-    user = auth_service.get_current_user(token)
+    user = await auth_service.get_current_user(token)
     return user
 
 
@@ -51,7 +51,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def register(user_data: UserRegister):
     """Register a new user."""
     try:
-        user = auth_service.register_user(
+        user = await auth_service.register_user(
             email=user_data.email,
             password=user_data.password,
             full_name=user_data.full_name
@@ -85,7 +85,7 @@ async def register(user_data: UserRegister):
 @router.post("/login", response_model=Token)
 async def login(user_credentials: UserLogin):
     """Authenticate user and return JWT token."""
-    user = auth_service.authenticate_user(
+    user = await auth_service.authenticate_user(
         email=user_credentials.email,
         password=user_credentials.password
     )

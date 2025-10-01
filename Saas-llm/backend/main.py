@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from routes import files, query, auth
 from config.settings import settings
+from models.mongodb import mongodb
 import uvicorn
 
 # Create FastAPI app
@@ -39,6 +40,26 @@ if settings.is_production:
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(files.router, prefix="/files", tags=["documents"])
 app.include_router(query.router, prefix="/query", tags=["questions"])
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup."""
+    try:
+        await mongodb.init_database()
+        print("MongoDB initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize MongoDB: {e}")
+
+# Shutdown event
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown."""
+    try:
+        await mongodb.close()
+        print("MongoDB connection closed")
+    except Exception as e:
+        print(f"Error closing MongoDB connection: {e}")
 
 # Health check endpoint
 @app.get("/health")

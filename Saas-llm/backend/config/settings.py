@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # Database Configuration
-    database_url: str = Field(default="sqlite:///./saas_llm.db", env="DATABASE_URL")
+    mongodb_url: str = Field(default="mongodb://localhost:27017", env="MONGODB_URL")
+    mongodb_database: str = Field(default="saas_llm", env="MONGODB_DATABASE")
     chroma_db_path: str = Field(default="./chroma_db", env="CHROMA_DB_PATH")
     
     # LLM Configuration
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra fields from environment
     
     @property
     def is_development(self) -> bool:

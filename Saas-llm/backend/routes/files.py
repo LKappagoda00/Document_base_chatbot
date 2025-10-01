@@ -12,7 +12,7 @@ from datetime import datetime
 
 from services.embeddings import embedding_service
 from services.vector_store import vector_store_service
-from models.database import Document
+from models.mongodb import MongoDocument
 from routes.auth import get_current_user
 from config.settings import settings
 
@@ -68,8 +68,8 @@ async def upload_pdf(
             )
         
         # Create document record in database
-        doc_model = Document()
-        doc_id = doc_model.create_document(
+        doc_model = MongoDocument()
+        doc_id = await doc_model.create_document(
             user_id=current_user["id"],
             filename=file.filename,
             file_path=file_path,
@@ -85,7 +85,7 @@ async def upload_pdf(
         
         # Store chunks in database
         for chunk in processed_chunks:
-            doc_model.add_document_chunk(
+            await doc_model.add_document_chunk(
                 doc_id=doc_id,
                 chunk_index=chunk["chunk_index"],
                 content=chunk["text"]
@@ -99,7 +99,7 @@ async def upload_pdf(
         )
         
         # Update document status
-        doc_model.update_document_status(doc_id, "completed")
+        await doc_model.update_document_status(doc_id, "completed")
         
         return {
             "message": "File uploaded and processed successfully",
@@ -126,8 +126,8 @@ async def upload_pdf(
 async def get_user_documents(current_user: dict = Depends(get_current_user)):
     """Get all documents uploaded by the current user."""
     try:
-        doc_model = Document()
-        documents = doc_model.get_user_documents(current_user["id"])
+        doc_model = MongoDocument()
+        documents = await doc_model.get_user_documents(current_user["id"])
         
         return {
             "documents": documents,
@@ -143,15 +143,15 @@ async def get_user_documents(current_user: dict = Depends(get_current_user)):
 
 @router.delete("/documents/{document_id}")
 async def delete_document(
-    document_id: int,
+    document_id: str,
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a document and its associated data."""
     try:
-        doc_model = Document()
+        doc_model = MongoDocument()
         
         # Check if document exists and belongs to user
-        document = doc_model.get_document_by_id(document_id)
+        document = await doc_model.get_document_by_id(document_id)
         if not document:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -175,7 +175,7 @@ async def delete_document(
                 pass  # File might already be deleted
         
         # Delete from database
-        doc_model.delete_document(document_id)
+        await doc_model.delete_document(document_id)
         
         return {
             "message": "Document deleted successfully",

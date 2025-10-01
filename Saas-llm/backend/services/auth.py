@@ -9,7 +9,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
-from models.database import User
+from models.mongodb import MongoUser
 from config.settings import settings
 
 # Suppress bcrypt version warnings
@@ -23,7 +23,7 @@ class AuthService:
     """Authentication service for user management and JWT tokens."""
     
     def __init__(self):
-        self.user_model = User()
+        self.user_model = MongoUser()
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash."""
@@ -46,9 +46,9 @@ class AuthService:
                 detail=f"Password hashing failed: {str(e)}"
             )
     
-    def authenticate_user(self, email: str, password: str) -> Optional[dict]:
+    async def authenticate_user(self, email: str, password: str) -> Optional[dict]:
         """Authenticate user with email and password."""
-        user = self.user_model.get_user_by_email(email)
+        user = await self.user_model.get_user_by_email(email)
         if not user:
             return None
         if not self.verify_password(password, user["password_hash"]):
@@ -86,7 +86,7 @@ class AuthService:
         except JWTError:
             return None
     
-    def get_current_user(self, token: str) -> dict:
+    async def get_current_user(self, token: str) -> dict:
         """Get current user from JWT token."""
         payload = self.verify_token(token)
         if payload is None:
@@ -97,7 +97,7 @@ class AuthService:
             )
         
         user_id = payload.get("sub")
-        user = self.user_model.get_user_by_id(int(user_id))
+        user = await self.user_model.get_user_by_id(user_id)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,7 +107,7 @@ class AuthService:
         
         return user
     
-    def register_user(self, email: str, password: str, full_name: str = None) -> dict:
+    async def register_user(self, email: str, password: str, full_name: str = None) -> dict:
         """Register a new user."""
         # Validate password length (bcrypt limit is 72 bytes)
         if len(password.encode('utf-8')) > 72:
@@ -117,7 +117,7 @@ class AuthService:
             )
         
         # Check if user already exists
-        existing_user = self.user_model.get_user_by_email(email)
+        existing_user = await self.user_model.get_user_by_email(email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -126,10 +126,10 @@ class AuthService:
         
         # Create new user
         hashed_password = self.get_password_hash(password)
-        user_id = self.user_model.create_user(email, hashed_password, full_name)
+        user_id = await self.user_model.create_user(email, hashed_password, full_name)
         
         # Get created user
-        user = self.user_model.get_user_by_id(user_id)
+        user = await self.user_model.get_user_by_id(user_id)
         return user
 
 
